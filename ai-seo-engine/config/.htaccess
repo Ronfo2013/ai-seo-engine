@@ -1,0 +1,8 @@
+# Proteggi file sensibili da accesso web
+<Files "*">
+    Require all denied
+</Files>
+
+# Consenti solo accesso da PHP
+Order Allow,Deny
+Deny from all
