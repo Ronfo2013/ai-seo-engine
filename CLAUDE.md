@@ -24,7 +24,7 @@ esplicitamente cosa cancellare invece di correggere.
 ```bash
 composer install                            # PHPUnit, PHPStan, PHP-CS-Fixer
 composer test                               # la suite (nessun test tocca la rete)
-composer analyse                            # PHPStan, livello 8 — oggi informativo
+composer analyse                            # PHPStan livello 8 (bloccante in CI)
 composer lint                               # PHP-CS-Fixer in sola lettura
 composer check                              # lint + analyse + test
 

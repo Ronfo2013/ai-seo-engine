@@ -503,7 +503,7 @@ Restano aperti e censiti: **B3**, **B5**, **B7**, **B8**, **B9**, **B10**, **S5*
 ### Fase 1 — Fondamenta di progetto — ✅ **completata**
 
 - [x] `composer.json`, autoload PSR-4, PHP ≥ 8.3
-- [x] PHPStan livello 8 e PHP-CS-Fixer configurati — **informativi** in CI finché non si stabilisce una baseline sul codice non tipizzato della v1
+- [x] PHPStan livello 8 e PHP-CS-Fixer **bloccanti** in CI. Il debito della v1 è circoscritto: `phpstan.neon` ignora gli array non tipizzati solo dentro `GeminiSEO.php`, e il fixer salta i tre file che la Fase 2 riscrive. Tutto il codice nuovo è coperto per intero
 - [x] PHPUnit con `FakeHttpClient` e `FakeTransport`: **46 test, nessuno tocca la rete**
 - [x] Fixture in `tests/fixtures/gemini/` che riproducono i formati storicamente rotti (recinti markdown, a capo nelle stringhe, caratteri di controllo)
 - [x] GitHub Actions su PHP 8.3 e 8.4: syntax check + test bloccanti, stile e analisi informativi
@@ -511,6 +511,12 @@ Restano aperti e censiti: **B3**, **B5**, **B7**, **B8**, **B9**, **B10**, **S5*
 
 Le **pagine HTML reali** come fixture restano da raccogliere: servono alla Fase
 4, non prima.
+
+Portare la CI al verde ha fatto emergere due difetti reali, entrambi corretti:
+i `@dataProvider` nei doc-comment che PHPUnit 11 ignora in silenzio (15 casi di
+test non venivano eseguiti), e quattro `preg_replace` in `parseResponse()` il cui
+`null` proseguiva fino a `json_decode` trasformando un errore di regex in un
+messaggio incomprensibile.
 
 `GeminiPipelineTest` contiene un test che **fotografa B3** invece di correggerlo:
 un titolo troppo lungo viene tagliato al 60esimo carattere e pubblicato con una
