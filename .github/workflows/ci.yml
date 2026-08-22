@@ -40,9 +40,13 @@ jobs:
         run: find ai-seo-engine tests -name '*.php' -print0 | xargs -0 -n1 -P4 php -l
 
       - name: Test
+        if: '!cancelled()'
         run: vendor/bin/phpunit --display-warnings --display-notices
 
+      # I tre controlli girano sempre, anche se uno prima ha fallito: un solo
+      # run deve mostrare tutti i problemi, non il primo e basta.
       - name: Stile del codice
+        if: '!cancelled()'
         run: vendor/bin/php-cs-fixer fix --dry-run --diff
 
       # Livello 8 e bloccante. Il debito non tipizzato della v1 è circoscritto a
@@ -50,4 +54,5 @@ jobs:
       # nuovo è analizzato per intero, e quando la Fase 2 riscriverà quel file
       # le eccezioni spariranno con lui.
       - name: Analisi statica
+        if: '!cancelled()'
         run: vendor/bin/phpstan analyse --no-progress --error-format=github

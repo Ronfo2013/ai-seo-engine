@@ -455,19 +455,36 @@ JSON;
      */
     private function parseResponse(string $text): array
     {
+        // Ognuna di queste preg_replace restituisce null se la regex fallisce —
+        // per esempio su UTF-8 malformato. Prima il null proseguiva silenzioso
+        // fino a json_decode, dove l'errore diventava incomprensibile.
+        $pulisci = static function (string $pattern, string $soggetto): ?string {
+            $esito = preg_replace($pattern, '', $soggetto);
+
+            return is_string($esito) ? $esito : null;
+        };
+
         // Pulisci da markdown
-        $text = preg_replace('/```json\s*|\s*```/', '', $text);
-        $text = trim($text);
+        $senzaMarkdown = $pulisci('/```json\s*|\s*```/', $text);
+        if ($senzaMarkdown === null) {
+            return ['success' => false, 'error' => 'Pulizia della risposta fallita: ' . preg_last_error_msg()];
+        }
+        $text = trim($senzaMarkdown);
 
         // Rimuovi caratteri di controllo non validi
-        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $text);
+        $senzaControllo = $pulisci('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', $text);
+        if ($senzaControllo === null) {
+            return ['success' => false, 'error' => 'Pulizia della risposta fallita: ' . preg_last_error_msg()];
+        }
+        $text = $senzaControllo;
 
         // APPROCCIO AGGRESSIVO: Rimuovi TUTTI i newline, tab e carriage return
         // Il JSON SEO non dovrebbe mai contenere questi caratteri
         $text = str_replace(["\r\n", "\r", "\n", "\t"], ' ', $text);
 
         // Rimuovi spazi multipli
-        $text = preg_replace('/\s+/', ' ', $text);
+        $spaziNormalizzati = preg_replace('/\s+/', ' ', $text);
+        $text = is_string($spaziNormalizzati) ? $spaziNormalizzati : $text;
 
         $data = json_decode($text, true);
 
