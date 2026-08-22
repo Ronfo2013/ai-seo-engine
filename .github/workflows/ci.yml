@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepara PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, json, mbstring
+          coverage: none
+          tools: composer:v2
+
+      - name: Valida composer.json
+        run: composer validate --strict
+
+      # Niente composer.lock in repo (è una libreria): si risolve al volo,
+      # così un aggiornamento rotto a monte si vede subito invece che fra mesi.
+      - name: Installa le dipendenze
+        run: composer update --no-interaction --no-progress --prefer-dist
+
+      - name: Syntax check di ogni file PHP
+        run: find ai-seo-engine tests -name '*.php' -print0 | xargs -0 -n1 -P4 php -l
+
+      - name: Test
+        run: vendor/bin/phpunit --display-warnings --display-notices
+
+      - name: Stile del codice
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff
+        continue-on-error: true
+
+      # Il livello 8 è l'obiettivo, non il punto di partenza: il codice della v1
+      # non è tipizzato. Questo passo resta informativo finché non si stabilisce
+      # una baseline, poi diventa bloccante.
+      - name: Analisi statica (informativa)
+        run: vendor/bin/phpstan analyse --no-progress --error-format=github
+        continue-on-error: true

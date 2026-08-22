@@ -1,0 +1,11 @@
+parameters:
+    level: 8
+    paths:
+        - ai-seo-engine
+        - tests
+    excludePaths:
+        analyse:
+            # Dipendono da load_content() / save_content(), che vivono nel sito
+            # ospite: qui non esistono e l'analisi non ha nulla da leggere.
+            - ai-seo-engine/integration.php
+            - ai-seo-engine/cron.php

@@ -1,0 +1,40 @@
+{
+    "name": "benhanced/ai-seo-engine",
+    "description": "Motore di generazione e applicazione automatica dei meta tag SEO",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.3",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0 || ^12.0",
+        "phpstan/phpstan": "^2.0",
+        "friendsofphp/php-cs-fixer": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "AISEOEngine\\": "ai-seo-engine/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AISEOEngine\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse",
+        "lint": "php-cs-fixer fix --dry-run --diff",
+        "check": [
+            "@lint",
+            "@analyse",
+            "@test"
+        ]
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

@@ -14,6 +14,21 @@ declare(strict_types=1);
 
 namespace AISEOEngine;
 
+// Il sito ospite carica questo file con un require_once e non ha ancora
+// composer: finché è così, le dipendenze se le tira dietro il file stesso.
+// Con l'autoload PSR-4 attivo queste righe diventano no-op (require_once è
+// idempotente) e spariranno quando il motore sarà installato come pacchetto.
+foreach ([
+    'HttpResponse', 'HttpClient', 'Transport', 'CurlTransport',
+    'Sleeper', 'RealSleeper', 'RecordingSleeper',
+    'RetryingHttpClient', 'FakeHttpClient',
+] as $dipendenza) {
+    require_once __DIR__ . '/Http/' . $dipendenza . '.php';
+}
+
+use AISEOEngine\Http\HttpClient;
+use AISEOEngine\Http\RetryingHttpClient;
+
 class GeminiSEO
 {
     /** Variabile d'ambiente da cui viene letta la chiave API. */
@@ -21,11 +36,13 @@ class GeminiSEO
 
     private string $configFile;
     private array $config;
+    private HttpClient $http;
     private string $apiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
-    public function __construct(?string $configPath = null)
+    public function __construct(?string $configPath = null, ?HttpClient $http = null)
     {
         $this->configFile = $configPath ?? __DIR__ . '/config/seo-config.json';
+        $this->http = $http ?? new RetryingHttpClient();
         $this->loadConfig();
     }
 
@@ -365,30 +382,33 @@ JSON;
             ]
         ];
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-            CURLOPT_TIMEOUT => 30,
-        ]);
+        $response = $this->http->postJson($url, $payload);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-
-        if ($response === false) {
-            return ['success' => false, 'error' => 'Errore di rete: ' . ($curlError !== '' ? $curlError : 'connessione non riuscita')];
+        if ($response->isConnectionFailure()) {
+            return [
+                'success' => false,
+                'error' => sprintf(
+                    'Errore di rete dopo %d tentativ%s: %s',
+                    $response->attempts,
+                    $response->attempts === 1 ? 'o' : 'i',
+                    $response->networkError
+                )
+            ];
         }
 
-        if ($httpCode !== 200) {
-            $error = json_decode($response, true)['error']['message'] ?? 'Errore API';
-            return ['success' => false, 'error' => "Gemini API Error ({$httpCode}): {$error}"];
+        if (!$response->isSuccess()) {
+            $decoded = json_decode($response->body, true);
+            $message = is_array($decoded)
+                ? ($decoded['error']['message'] ?? 'Errore API')
+                : 'Errore API';
+
+            return [
+                'success' => false,
+                'error' => "Gemini API Error ({$response->status}): {$message}"
+            ];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode($response->body, true);
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
             return ['success' => false, 'error' => 'Risposta API non valida: ' . json_last_error_msg()];
         }

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnWarning="true"
+         failOnNotice="true"
+         failOnRisky="true"
+         beStrictAboutOutputDuringTests="true">
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>ai-seo-engine</directory>
+        </include>
+        <exclude>
+            <!-- Script del sito ospite, non caricabili in isolamento -->
+            <file>ai-seo-engine/integration.php</file>
+            <file>ai-seo-engine/cron.php</file>
+        </exclude>
+    </source>
+</phpunit>

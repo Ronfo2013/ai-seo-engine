@@ -21,8 +21,16 @@ esplicitamente cosa cancellare invece di correggere.
 
 ## Comandi
 
-Non esistono composer, autoload, test runner, linter o CI: la Fase 1 del piano
-serve esattamente a introdurli. Nel frattempo:
+```bash
+composer install                            # PHPUnit, PHPStan, PHP-CS-Fixer
+composer test                               # la suite (nessun test tocca la rete)
+composer analyse                            # PHPStan, livello 8 — oggi informativo
+composer lint                               # PHP-CS-Fixer in sola lettura
+composer check                              # lint + analyse + test
+
+vendor/bin/phpunit --filter testIlBackoffCresce          # un singolo test
+vendor/bin/phpunit tests/Unit/RetryPolicyTest.php        # una singola classe
+```
 
 ```bash
 php -l ai-seo-engine/GeminiSEO.php          # syntax check (unico "lint" disponibile)
@@ -37,11 +45,15 @@ Due variabili d'ambiente, entrambe fuori dal repo:
 | `GEMINI_API_KEY` | Chiave API. Obbligatoria: senza, il motore si ferma prima di chiamare la rete |
 | `AI_SEO_CRON_SECRET` | Autentica l'invocazione di `cron.php` via web (da CLI non serve). Minimo 32 caratteri, altrimenti l'endpoint risponde 503 e non esegue |
 
-Per esercitare il motore in isolamento, istanzia direttamente la classe e passa
-il tuo `$saveCallback`; il `README.md` contiene gli snippet di riferimento per
-`testConnection()` e `autoGenerateAndApply()`. Serve una `GEMINI_API_KEY` valida:
-non ci sono fixture registrate né fake provider, quindi **ogni prova tocca la
-rete e consuma quota**.
+Per esercitare il motore in isolamento passa un `FakeHttpClient` al costruttore:
+`new GeminiSEO($config, FakeHttpClient::respondingWith(200, $fixture))`. Le
+fixture stanno in `tests/fixtures/gemini/` e riproducono i formati che hanno
+rotto il parsing in passato.
+
+**Nessun test deve toccare la rete.** Se scrivendone uno ti serve una
+`GEMINI_API_KEY` vera, hai sbagliato la cucitura: passa dal `FakeHttpClient`,
+oppure da `FakeTransport` se quello che stai provando è la politica di
+ritentativo.
 
 ## Architettura
 
@@ -52,7 +64,7 @@ cron.php → ArhenaSEOIntegration::runAutoUpdate()
          → GeminiSEO::autoGenerateAndApply($siteData, $saveCallback)
              ├─ analyzeSiteContent()   estrae il contesto da $siteData
              ├─ buildPrompt()          assembla istruzioni + contesto + schema atteso
-             ├─ callGeminiAPI()        curl grezzo, nessun retry
+             ├─ callGeminiAPI()        delega a HttpClient (retry + backoff)
              ├─ parseResponse()        ripulisce il testo e fa json_decode
              └─ applySEO()             muta $siteData e invoca $saveCallback
 ```
@@ -104,10 +116,30 @@ posto. Se aggiungi un campo sensibile alla config, trattalo allo stesso modo.
 Le scritture di config, storico e log usano `LOCK_EX`, e `saveToHistory()` fa
 read-modify-write dentro un `flock()`: cron e admin possono girare insieme.
 
+### Il livello HTTP
+
+`ai-seo-engine/Http/` separa due responsabilità che nella v1 erano un unico
+blocco di `curl_setopt_array`:
+
+- `Transport` — un solo tentativo. `CurlTransport` è l'unico punto del progetto
+  da cui esce un pacchetto.
+- `HttpClient` — cosa fare quando un tentativo va male. `RetryingHttpClient`
+  riprova su rete, 429, 408 e 5xx, **mai** su altri 4xx (una chiave sbagliata
+  resta sbagliata), con backoff esponenziale più jitter e rispetto di
+  `Retry-After` fino a un massimo di 60 secondi.
+
+I due doppioni per i test sono `FakeHttpClient` (salta la politica, restituisce
+risposte preparate, registra le richieste) e `FakeTransport` (fa passare la
+politica vera senza rete). L'attesa è iniettabile via `Sleeper`: `RecordingSleeper`
+annota quanto *avrebbe* dormito, così testare il backoff non richiede di
+aspettarlo.
+
 ## Convenzioni
 
-- `declare(strict_types=1)` in testa a ogni file PHP; namespace `AISEOEngine`;
-  nessun autoload, i file si tirano con `require_once`.
+- `declare(strict_types=1)` in testa a ogni file PHP; namespace `AISEOEngine`,
+  autoload PSR-4 da `ai-seo-engine/`. In testa a `GeminiSEO.php` restano dei
+  `require_once` espliciti per le classi `Http/`: servono al sito ospite, che
+  carica il file a mano e non ha ancora composer. Vanno via in Fase 2.
 - Prompt, messaggi di errore, commenti e documentazione sono **in italiano**.
   L'output del modello è italiano per costruzione.
 - Il modello è cablato in `GeminiSEO.php:21` (`gemini-2.5-flash`);

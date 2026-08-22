@@ -7,3 +7,6 @@ vendor/
 # esecuzione e può contenere segreti. Tracciato solo il file di esempio.
 ai-seo-engine/config/*.json
 !ai-seo-engine/config/seo-config.example.json
+.phpunit.cache/
+.php-cs-fixer.cache
+composer.lock

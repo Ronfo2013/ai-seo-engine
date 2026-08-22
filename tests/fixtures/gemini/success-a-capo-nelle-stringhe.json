@@ -1,0 +1,14 @@
+{
+    "candidates": [
+        {
+            "content": {
+                "parts": [
+                    {
+                        "text": "{\n    \"title\": \"Bowling e Ristorante a Portogruaro | Arhena\",\n    \"description\": \"Piste da bowling, cucina genuina ed eventi ogni weekend a Portogruaro. Prenota il tuo tavolo o la tua pista, ti aspettiamo!\",\n    \"keywords\": \"bowling portogruaro, ristorante portogruaro, pizzeria, eventi, feste private\",\n    \"reasoning\": \"Strategia:\\nlocalità nel titolo,\\nservizi nella description\",\n    \"confidence\": 92\n}"
+                    }
+                ]
+            },
+            "finishReason": "STOP"
+        }
+    ]
+}

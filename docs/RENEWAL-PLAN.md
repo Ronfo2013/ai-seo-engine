@@ -500,14 +500,22 @@ significa ricreare esattamente l'`auto_apply` che stiamo togliendo.
 
 Restano aperti e censiti: **B3**, **B5**, **B7**, **B8**, **B9**, **B10**, **S5**.
 
-### Fase 1 — Fondamenta di progetto *(3-5 gg)*
+### Fase 1 — Fondamenta di progetto — ✅ **completata**
 
-- [ ] `composer.json`, autoload PSR-4, PHP ≥ 8.3
-- [ ] PHPStan livello 8, PHP-CS-Fixer
-- [ ] PHPUnit con `FakeProvider`: **nessun test tocca la rete**
-- [ ] Fixture: risposte modello registrate + **pagine HTML reali salvate** (servono in Fase 4)
-- [ ] GitHub Actions: lint + analisi statica + test
-- [ ] Astrazione HTTP con retry e backoff su 429/5xx
+- [x] `composer.json`, autoload PSR-4, PHP ≥ 8.3
+- [x] PHPStan livello 8 e PHP-CS-Fixer configurati — **informativi** in CI finché non si stabilisce una baseline sul codice non tipizzato della v1
+- [x] PHPUnit con `FakeHttpClient` e `FakeTransport`: **46 test, nessuno tocca la rete**
+- [x] Fixture in `tests/fixtures/gemini/` che riproducono i formati storicamente rotti (recinti markdown, a capo nelle stringhe, caratteri di controllo)
+- [x] GitHub Actions su PHP 8.3 e 8.4: syntax check + test bloccanti, stile e analisi informativi
+- [x] Astrazione HTTP con retry e backoff: `Transport` (un tentativo) separato da `RetryingHttpClient` (cosa fare se va male)
+
+Le **pagine HTML reali** come fixture restano da raccogliere: servono alla Fase
+4, non prima.
+
+`GeminiPipelineTest` contiene un test che **fotografa B3** invece di correggerlo:
+un titolo troppo lungo viene tagliato al 60esimo carattere e pubblicato con una
+congiunzione appesa nel vuoto. Diventerà rosso quando la Fase 2 introdurrà il
+`RepairLoop` — ed è esattamente il segnale che serve.
 
 ### Fase 2 — Migrazione all'API Claude *(3-4 gg)*
 

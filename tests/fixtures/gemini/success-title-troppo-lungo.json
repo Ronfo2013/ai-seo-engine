@@ -1,0 +1,14 @@
+{
+    "candidates": [
+        {
+            "content": {
+                "parts": [
+                    {
+                        "text": "{\"title\":\"Arhena Portogruaro - Bowling, Ristorante, Pizzeria, Eventi e Feste Private dal 1998\",\"description\":\"Piste da bowling, cucina genuina ed eventi ogni weekend a Portogruaro. Prenota il tuo tavolo o la tua pista, ti aspettiamo!\",\"keywords\":\"bowling portogruaro, ristorante portogruaro, pizzeria, eventi, feste private\",\"reasoning\":\"Località in apertura di titolo e servizi principali in evidenza\",\"confidence\":92}"
+                    }
+                ]
+            },
+            "finishReason": "STOP"
+        }
+    ]
+}
