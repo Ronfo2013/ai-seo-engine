@@ -31,6 +31,38 @@ Il piano porta il motore da **generatore one-shot** a **ottimizzatore
 closed-loop, multi-pagina e provider-agnostico**, in 6 fasi da ~20-32 giorni-uomo
 complessivi, con la Fase 0 (sicurezza + crash) da fare comunque e subito.
 
+### Il quadro in una figura
+
+```
+OGGI · CICLO APERTO
+
+  content.json ──legge──▶  estrazione  ──prompt──▶  Gemini  ──testo──▶  parseResponse  ──tronca──▶  scrive
+                           hardcoded                                    pulizia stringhe            3 meta tag
+        ▲                                                                                                │
+        └───────────────────────  ✗  anello assente: nessuna misura di ritorno  ──────────────────────────┘
+
+
+v2.0 · CICLO CHIUSO
+
+                                          ┌────────  rigenera · max 2 tentativi  ────────┐
+                                          ▼                                              │
+  profile.yaml ──▶  contesto  ──prompt──▶  LLM  ──bundle──▶  validazione  ──conforme──▶  preview
+   per cliente     + dati reali          tipizzato          deterministica                poi applica
+                        ▲                                                                      │
+                        │                                                                      │ URL
+                        │                                                                      │ modificato
+                        │                                                                      ▼
+                        └──  confronto 14–28 gg  ──  Search Console (CTR · posizione)  ◀────────┘
+                            rollback se peggiora
+```
+
+La differenza non sta nei singoli riquadri, sta nei **due anelli che oggi
+mancano**. In basso la validazione rimanda indietro l'output non conforme invece
+di troncarlo, e Search Console rimanda i dati reali dentro il contesto della
+generazione successiva: è questo che trasforma un generatore in un ottimizzatore.
+Le fasi costruiscono gli anelli da destra a sinistra — la **Fase 2** chiude
+quello di rigenerazione, la **Fase 4** quello di misura.
+
 ---
 
 ## 2. Diagnosi dello stato attuale
