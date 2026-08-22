@@ -5,6 +5,7 @@ namespace AISEOEngine\Tests\Unit;
 
 use AISEOEngine\GeminiSEO;
 use AISEOEngine\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * B1 — `seo.business_type` arrivava come stringa e `in_array()` sollevava un
@@ -48,9 +49,7 @@ final class BusinessTypeTest extends TestCase
         );
     }
 
-    /**
-     * @dataProvider valoriStrani
-     */
+    #[DataProvider('valoriStrani')]
     public function testValoriInattesiNonSollevanoEccezioni(mixed $valore): void
     {
         $contesto = $this->motore()->analyzeSiteContent($this->datiSito($valore));

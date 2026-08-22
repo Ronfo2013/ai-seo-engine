@@ -7,6 +7,7 @@ use AISEOEngine\GeminiSEO;
 use AISEOEngine\Http\FakeHttpClient;
 use AISEOEngine\Http\HttpResponse;
 use AISEOEngine\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Il percorso completo, dalla risposta del modello ai meta tag scritti,
@@ -43,9 +44,7 @@ final class GeminiPipelineTest extends TestCase
         return [$esito, $salvato];
     }
 
-    /**
-     * @dataProvider rispostePulite
-     */
+    #[DataProvider('rispostePulite')]
     public function testIlParsingSopravviveAiFormatiStorici(string $fixture): void
     {
         [$motore] = $this->motoreCon($fixture);
@@ -93,9 +92,7 @@ final class GeminiPipelineTest extends TestCase
         self::assertSame([], $motore->getHistory(10), 'Niente storico se non si è salvato niente');
     }
 
-    /**
-     * @dataProvider rispostiDaRifiutare
-     */
+    #[DataProvider('rispostiDaRifiutare')]
     public function testLeRisposteInutilizzabiliNonToccanoIlSito(
         string $fixture,
         int $status,
