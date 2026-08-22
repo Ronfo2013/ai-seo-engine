@@ -1,8 +1,17 @@
-# Proteggi file sensibili da accesso web
-<Files "*">
-    Require all denied
-</Files>
+# Blocca l'accesso web a configurazione, storico e log.
+#
+# Le due sintassi vanno tenute separate: mescolare le direttive 2.2
+# (Order/Deny) con quelle 2.4 (Require) produce un errore 500 su Apache 2.4
+# quando mod_access_compat non è caricato — cioè nessuna protezione, e il
+# sito giù.
 
-# Consenti solo accesso da PHP
-Order Allow,Deny
-Deny from all
+<IfModule mod_authz_core.c>
+    # Apache 2.4+
+    Require all denied
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    # Apache 2.2
+    Order allow,deny
+    Deny from all
+</IfModule>

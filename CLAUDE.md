@@ -27,7 +27,15 @@ serve esattamente a introdurli. Nel frattempo:
 ```bash
 php -l ai-seo-engine/GeminiSEO.php          # syntax check (unico "lint" disponibile)
 php ai-seo-engine/cron.php                  # entry point reale — richiede il sito ospite
+php ai-seo-engine/cron.php --force          # ignora l'attesa fra un run e il successivo
 ```
+
+Due variabili d'ambiente, entrambe fuori dal repo:
+
+| Variabile | Serve a |
+|---|---|
+| `GEMINI_API_KEY` | Chiave API. Obbligatoria: senza, il motore si ferma prima di chiamare la rete |
+| `AI_SEO_CRON_SECRET` | Autentica l'invocazione di `cron.php` via web (da CLI non serve). Minimo 32 caratteri, altrimenti l'endpoint risponde 503 e non esegue |
 
 Per esercitare il motore in isolamento, istanzia direttamente la classe e passa
 il tuo `$saveCallback`; il `README.md` contiene gli snippet di riferimento per
@@ -51,9 +59,8 @@ cron.php → ArhenaSEOIntegration::runAutoUpdate()
 
 Tre gate bloccano l'esecuzione prima ancora della chiamata API: `enabled`,
 `api_key` non vuota, e `shouldRun()` (default: **30 giorni** dall'ultimo run).
-Quando stai testando, il terzo è quello che ti farà perdere tempo — e
-`runAutoUpdate($force)` accetta un flag che **non viene mai usato**, quindi non
-esiste ancora un modo pulito di bypassarlo.
+Il terzo si scavalca con `$force`, che arriva fino in fondo alla catena:
+`cron.php --force` → `runAutoUpdate(true)` → `autoGenerateAndApply(..., true)`.
 
 ### Il contratto su `$siteData`
 
@@ -68,9 +75,10 @@ contact.address                              ← da cui si ricava la località
 sections[].title, sections[].content         ← servizi e USP
 ```
 
-`extractBusinessType()` accetta sia stringa che array, ma `extractUSP()` e
-`inferTargetAudience()` fanno `in_array()` assumendo un array: con una stringa
-sollevano un **TypeError fatale** su PHP 8. È il primo fix della Fase 0.
+`seo.business_type` può arrivare come stringa o come array: passa sempre da
+`businessTypes()`, che normalizza in un punto solo. Non leggerlo mai
+direttamente — era esattamente così che `extractUSP()` e `inferTargetAudience()`
+sollevavano un TypeError fatale con una stringa.
 
 ### Il motore è specifico, non generico
 
@@ -83,15 +91,18 @@ casi hardcoded: la Fase 3 li sostituisce con un `profile.yaml` per cliente.
 
 ### Config = stato mutabile, non impostazioni
 
-`config/seo-config.json` è **tracciato in git** e viene riscritto a runtime da
-`saveConfig()` (`last_run`, `last_applied`). Due conseguenze: le modifiche
-manuali possono essere sovrascritte da un run, e appena qualcuno configura una
-`api_key` reale questa finisce in un commit. Accanto al file la classe crea
-`history.json` e `activity.log`, che non esistono finché il motore non gira.
+`config/seo-config.json` viene riscritto a runtime da `saveConfig()` (`last_run`,
+`last_applied`), quindi **le tue modifiche manuali possono essere sovrascritte da
+un run**. Non è tracciato in git: in repo c'è solo `seo-config.example.json`, e
+`config/*.json` è ignorato. Accanto al file la classe crea `history.json` e
+`activity.log`, che non esistono finché il motore non gira.
 
-Anche il segreto del cron è nel sorgente: `cron.php:24` calcola
-`hash('sha256', 'arhena_seo_cron_2025')`, quindi chiunque legga il file può
-derivarlo.
+La chiave API non viene mai persistita: `applyEnvironmentSecrets()` la legge da
+`GEMINI_API_KEY` a ogni costruzione e `saveConfig()` scrive sempre `""` al suo
+posto. Se aggiungi un campo sensibile alla config, trattalo allo stesso modo.
+
+Le scritture di config, storico e log usano `LOCK_EX`, e `saveToHistory()` fa
+read-modify-write dentro un `flock()`: cron e admin possono girare insieme.
 
 ## Convenzioni
 

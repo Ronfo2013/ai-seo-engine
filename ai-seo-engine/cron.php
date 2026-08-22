@@ -10,7 +10,16 @@ declare(strict_types=1);
  * - Webhook esterno
  * 
  * SETUP CRON:
- * 0 3 * * * cd /path/to/arhena_site && php ai-seo-engine/cron.php
+ * 0 3 * * * cd /path/to/arhena_site && GEMINI_API_KEY=... php ai-seo-engine/cron.php
+ *
+ * VARIABILI D'AMBIENTE:
+ * - GEMINI_API_KEY      chiave API (obbligatoria)
+ * - AI_SEO_CRON_SECRET  segreto per l'invocazione via web, min 32 caratteri
+ *                       (non serve da CLI). Generane uno con:
+ *                       php -r "echo bin2hex(random_bytes(32));"
+ *
+ * FLAG:
+ * - --force  ignora l'attesa fra un run e il successivo
  */
 
 require_once __DIR__ . '/integration.php';
@@ -20,20 +29,35 @@ $isCLI = php_sapi_name() === 'cli';
 
 // Se eseguito da web, verifica secret key
 if (!$isCLI) {
-    $secretKey = $_GET['secret'] ?? '';
-    $validSecret = hash('sha256', 'arhena_seo_cron_2025'); // Cambia questo!
-    
-    if ($secretKey !== $validSecret) {
+    header('Content-Type: application/json');
+
+    $validSecret = getenv('AI_SEO_CRON_SECRET');
+
+    // Nessun segreto nell'ambiente = endpoint chiuso.
+    // Un default nel sorgente non sarebbe un segreto: chiunque legga il file
+    // lo ricava.
+    if (!is_string($validSecret) || strlen($validSecret) < 32) {
+        http_response_code(503);
+        die(json_encode(['error' => 'Endpoint non configurato: manca AI_SEO_CRON_SECRET']));
+    }
+
+    // hash_equals: confronto a tempo costante, non rivela il segreto
+    // un carattere alla volta.
+    if (!hash_equals($validSecret, (string) ($_GET['secret'] ?? ''))) {
         http_response_code(403);
         die(json_encode(['error' => 'Non autorizzato']));
     }
-    
-    header('Content-Type: application/json');
 }
+
+// --force da CLI, force=1 da web (comunque dietro al segreto):
+// scavalca l'attesa fra un run e il successivo.
+$force = $isCLI
+    ? in_array('--force', $argv ?? [], true)
+    : (($_GET['force'] ?? '') === '1');
 
 // Esegui aggiornamento
 $integration = new ArhenaSEOIntegration();
-$result = $integration->runAutoUpdate();
+$result = $integration->runAutoUpdate($force);
 
 // Output
 if ($isCLI) {

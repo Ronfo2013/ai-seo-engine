@@ -487,14 +487,18 @@ fare: capire l'intento e scrivere.
 sia finita. Costruire un canale di scrittura prima del cancello che lo autorizza
 significa ricreare esattamente l'`auto_apply` che stiamo togliendo.
 
-### Fase 0 — Messa in sicurezza *(1-2 gg · da fare comunque)*
+### Fase 0 — Messa in sicurezza — ✅ **completata**
 
-- [ ] Fix **B1** — normalizzare `business_type` ad array in un solo punto
-- [ ] Fix **S1** — chiave API da `getenv()`, rimossa dal JSON, `config/*.json` in `.gitignore`
-- [ ] Fix **S2/S3** — segreto cron da variabile d'ambiente + `hash_equals()`
-- [ ] Fix **S4** — `.htaccess` con sola sintassi Apache 2.4
-- [ ] Fix **B6** — `LOCK_EX` come tampone finché non arriva il database (Fase 3)
-- [ ] Fix **B2** e **B4**; ruotare la chiave se è mai stata committata
+- [x] Fix **B1** — `businessTypes()` normalizza in un punto solo; il TypeError non è più raggiungibile
+- [x] Fix **S1** — chiave da `GEMINI_API_KEY`, mai persistita, `config/*.json` ignorato, in repo solo `seo-config.example.json`
+- [x] Fix **S2/S3** — segreto cron da `AI_SEO_CRON_SECRET` + `hash_equals()`; senza segreto l'endpoint risponde 503
+- [x] Fix **S4** — `.htaccess` con 2.4 e 2.2 separate da `<IfModule>`
+- [x] Fix **B6** — `LOCK_EX` ovunque e `flock()` sul read-modify-write dello storico (tampone fino al database, Fase 3)
+- [x] Fix **B2** — `--force` arriva fino in fondo alla catena
+- [x] Fix **B4** — il modello riportato è ricavato dall'endpoint
+- [x] Rotazione chiave **non necessaria**: la cronologia git mostra `"api_key": ""` in ogni commit, non è mai stato pubblicato un valore
+
+Restano aperti e censiti: **B3**, **B5**, **B7**, **B8**, **B9**, **B10**, **S5**.
 
 ### Fase 1 — Fondamenta di progetto *(3-5 gg)*
 

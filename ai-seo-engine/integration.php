@@ -40,8 +40,9 @@ class ArhenaSEOIntegration
             return save_content($data);
         };
         
-        // Esegui generazione e applicazione automatica
-        $result = $this->engine->autoGenerateAndApply($siteData, $saveCallback);
+        // Esegui generazione e applicazione automatica.
+        // $force scavalca l'attesa fra un run e il successivo.
+        $result = $this->engine->autoGenerateAndApply($siteData, $saveCallback, $force);
         
         return $result;
     }

@@ -16,6 +16,9 @@ namespace AISEOEngine;
 
 class GeminiSEO
 {
+    /** Variabile d'ambiente da cui viene letta la chiave API. */
+    private const API_KEY_ENV = 'GEMINI_API_KEY';
+
     private string $configFile;
     private array $config;
     private string $apiEndpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
@@ -37,6 +40,65 @@ class GeminiSEO
         } else {
             $this->config = json_decode(file_get_contents($this->configFile), true) ?? $this->getDefaultConfig();
         }
+
+        $this->applyEnvironmentSecrets();
+    }
+
+    /**
+     * I segreti vivono nell'ambiente, non nel file di configurazione: il file
+     * è tracciato in git, l'ambiente no.
+     */
+    private function applyEnvironmentSecrets(): void
+    {
+        $envKey = getenv(self::API_KEY_ENV);
+
+        if (is_string($envKey) && trim($envKey) !== '') {
+            $this->config['api_key'] = trim($envKey);
+            return;
+        }
+
+        // Nessuna chiave nell'ambiente: si continua con quella eventualmente
+        // già presente nel file, che però saveConfig() non riscriverà mai.
+        $this->config['api_key'] = is_string($this->config['api_key'] ?? null)
+            ? $this->config['api_key']
+            : '';
+    }
+
+    /**
+     * Nome del modello ricavato dall'endpoint, così non può divergere da esso.
+     */
+    private function modelName(): string
+    {
+        return preg_match('#/models/([^:/?]+)#', $this->apiEndpoint, $matches) === 1
+            ? $matches[1]
+            : 'sconosciuto';
+    }
+
+    /**
+     * `seo.business_type` può arrivare come stringa o come array. Normalizzarlo
+     * in un solo punto evita il TypeError di in_array() su haystack stringa.
+     */
+    private function businessTypes(array $data): array
+    {
+        $types = $data['seo']['business_type'] ?? [];
+
+        if (is_string($types)) {
+            $types = explode(',', $types);
+        }
+
+        if (!is_array($types)) {
+            return [];
+        }
+
+        $normalized = array_map(
+            static fn ($type): string => is_scalar($type) ? trim((string) $type) : '',
+            $types
+        );
+
+        return array_values(array_filter(
+            $normalized,
+            static fn (string $type): bool => $type !== ''
+        ));
     }
 
     /**
@@ -125,7 +187,7 @@ INSTRUCTIONS;
     /**
      * Genera SEO automaticamente e applica se configurato
      */
-    public function autoGenerateAndApply(array $siteData, callable $saveCallback): array
+    public function autoGenerateAndApply(array $siteData, callable $saveCallback, bool $force = false): array
     {
         // Verifica se abilitato
         if (!$this->config['enabled']) {
@@ -134,11 +196,14 @@ INSTRUCTIONS;
 
         // Verifica API key
         if (empty($this->config['api_key'])) {
-            return ['success' => false, 'error' => 'API key non configurata'];
+            return [
+                'success' => false,
+                'error' => 'API key non configurata: imposta la variabile d\'ambiente ' . self::API_KEY_ENV
+            ];
         }
 
-        // Verifica frequenza
-        if (!$this->shouldRun()) {
+        // Verifica frequenza — $force la scavalca (esecuzione manuale da admin)
+        if (!$force && !$this->shouldRun()) {
             return [
                 'success' => false,
                 'error' => 'Troppo presto per rigenerare',
@@ -485,7 +550,15 @@ JSON;
             mkdir($dir, 0755, true);
         }
 
-        file_put_contents($this->configFile, json_encode($this->config, JSON_PRETTY_PRINT));
+        // La chiave API non viene mai persistita: vive solo nell'ambiente.
+        $persisted = $this->config;
+        $persisted['api_key'] = '';
+
+        file_put_contents(
+            $this->configFile,
+            json_encode($persisted, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            LOCK_EX
+        );
     }
 
     /**
@@ -494,23 +567,57 @@ JSON;
     private function saveToHistory(array $old, array $new): void
     {
         $historyFile = dirname($this->configFile) . '/history.json';
-        $history = file_exists($historyFile)
-            ? json_decode(file_get_contents($historyFile), true)
-            : ['entries' => []];
 
-        $history['entries'][] = [
-            'timestamp' => date('Y-m-d H:i:s'),
-            'old' => $old,
-            'new' => $new,
-            'confidence' => $new['confidence'] ?? null
-        ];
-
-        // Mantieni solo ultimi 100
-        if (count($history['entries']) > 100) {
-            $history['entries'] = array_slice($history['entries'], -100);
+        // Lettura e riscrittura devono stare dentro lo stesso lock: cron e
+        // admin possono girare insieme e l'ultimo che scrive vincerebbe.
+        $handle = fopen($historyFile, 'c+');
+        if ($handle === false) {
+            $this->log('history_open_failed', ['file' => $historyFile]);
+            return;
         }
 
-        file_put_contents($historyFile, json_encode($history, JSON_PRETTY_PRINT));
+        try {
+            if (!flock($handle, LOCK_EX)) {
+                $this->log('history_lock_failed', ['file' => $historyFile]);
+                return;
+            }
+
+            $raw = stream_get_contents($handle);
+            $history = is_string($raw) && trim($raw) !== ''
+                ? json_decode($raw, true)
+                : null;
+
+            if (!is_array($history) || !isset($history['entries']) || !is_array($history['entries'])) {
+                $history = ['entries' => []];
+            }
+
+            $history['entries'][] = [
+                'timestamp' => date('Y-m-d H:i:s'),
+                'old' => $old,
+                'new' => $new,
+                'confidence' => $new['confidence'] ?? null
+            ];
+
+            // Mantieni solo ultimi 100
+            if (count($history['entries']) > 100) {
+                $history['entries'] = array_slice($history['entries'], -100);
+            }
+
+            $encoded = json_encode(
+                $history,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            );
+
+            if ($encoded !== false) {
+                ftruncate($handle, 0);
+                rewind($handle);
+                fwrite($handle, $encoded);
+                fflush($handle);
+            }
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 
 
@@ -542,7 +649,7 @@ JSON;
             $jsonData
         );
 
-        file_put_contents($logFile, $entry, FILE_APPEND);
+        file_put_contents($logFile, $entry, FILE_APPEND | LOCK_EX);
     }
 
 
@@ -584,17 +691,17 @@ JSON;
 
     private function extractBusinessType(array $data): string
     {
-        if (!empty($data['seo']['business_type'])) {
-            $types = is_array($data['seo']['business_type'])
-                ? implode(' + ', $data['seo']['business_type'])
-                : $data['seo']['business_type'];
-            return str_replace(
-                ['Restaurant', 'BowlingAlley', 'NightClub'],
-                ['Ristorante/Pizzeria', 'Bowling', 'Locale Notturno'],
-                $types
-            );
+        $types = $this->businessTypes($data);
+
+        if ($types === []) {
+            return 'Attività locale';
         }
-        return 'Attività locale';
+
+        return str_replace(
+            ['Restaurant', 'BowlingAlley', 'NightClub'],
+            ['Ristorante/Pizzeria', 'Bowling', 'Locale Notturno'],
+            implode(' + ', $types)
+        );
     }
 
     private function extractLocation(array $data): string
@@ -636,7 +743,7 @@ JSON;
         $usp = [];
 
         // Da tipo business
-        $types = $data['seo']['business_type'] ?? [];
+        $types = $this->businessTypes($data);
         if (in_array('BowlingAlley', $types))
             $usp[] = 'piste da bowling professionali';
         if (in_array('Restaurant', $types))
@@ -659,7 +766,7 @@ JSON;
 
     private function inferTargetAudience(array $data): string
     {
-        $types = $data['seo']['business_type'] ?? [];
+        $types = $this->businessTypes($data);
         $audience = [];
 
         if (in_array('BowlingAlley', $types))
@@ -751,14 +858,17 @@ JSON;
     public function testConnection(): array
     {
         if (empty($this->config['api_key'])) {
-            return ['success' => false, 'error' => 'API key mancante'];
+            return [
+                'success' => false,
+                'error' => 'API key mancante: imposta la variabile d\'ambiente ' . self::API_KEY_ENV
+            ];
         }
 
         $testPrompt = 'Rispondi SOLO con questo JSON: {"status":"ok","message":"Test riuscito"}';
         $result = $this->callGeminiAPI($testPrompt);
 
         return $result['success']
-            ? ['success' => true, 'message' => 'Connessione a Gemini OK!', 'model' => 'gemini-1.5-flash']
+            ? ['success' => true, 'message' => 'Connessione a Gemini OK!', 'model' => $this->modelName()]
             : $result;
     }
 
