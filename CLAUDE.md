@@ -101,6 +101,8 @@ derivarlo.
   L'output del modello è italiano per costruzione.
 - Il modello è cablato in `GeminiSEO.php:21` (`gemini-2.5-flash`);
   `testConnection()` ne riporta un altro. Se cambi l'endpoint, allinea entrambi.
+  **Il provider di destinazione è però l'API Claude** (`anthropic-ai/sdk`,
+  `claude-opus-5`): non investire su Gemini, vedi Fase 2 del piano.
 - `parseResponse()` sostituisce **tutti** i newline e i tab con spazi prima del
   `json_decode`. È una toppa al problema storico di parsing descritto nel README:
   la Fase 2 la elimina passando agli structured output, quindi non irrobustirla —
