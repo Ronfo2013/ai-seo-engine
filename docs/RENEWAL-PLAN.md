@@ -72,6 +72,56 @@ l'output non conforme invece di troncarlo; la UI impedisce che qualcosa
 raggiunga un sito senza che una persona l'abbia visto; Search Console rimanda i
 dati reali dentro il contesto della generazione successiva.
 
+### Il tuo flusso di lavoro
+
+Il motore **non si installa nel sito del cliente**: sta da te, e guarda il sito
+da fuori come farebbe Google.
+
+```
+      LA TUA INSTALLAZIONE · una sola, N clienti          FUORI · non lo ospiti tu
+    ┌───────────────────────────────────────────┐
+    │                                           │      ┌──────────────────────┐
+ ┌──┴───┐   approvi ──▶  ┌───────────────────┐  │  ┌──▶│   Search Console     │
+ │  TU  │◀── ti propone  │    Dashboard      │  │  │   │  del cliente         │
+ └──┬───┘                │ coda · diff · ok  │  │  │   └──────────────────────┘
+    │                    └─────────┬─────────┘  │  │    il cliente ti autorizza
+    │                              │            │  │       una volta sola
+    │                    ┌─────────▼─────────┐  │  │
+    │                    │      Motore       │──┼──┘  legge CTR e posizione
+    │                    │ crawler · audit   │  │
+    │                    │   generazione     │──┼─────▶┌──────────────────────┐
+    │                    └─────────┬─────────┘  │      │  Sito o landing      │
+    │                              │            │─ ─ ─▶│  del cliente         │
+    │                    ┌─────────▼─────────┐  │       scrive solo se        │
+    │                    │     Database      │  │       hai approvato         │
+    │                    │ tenant · storico  │  │      └──────────────────────┘
+    │                    └───────────────────┘  │
+    └───────────────────────────────────────────┘─────▶┌──────────────────────┐
+                                                       │  API Claude          │
+                                                       └──────────────────────┘
+```
+
+Le due frecce verso il sito sono il punto: **lettura sempre, scrittura solo dopo
+la tua approvazione** — e solo se per quel cliente hai scelto un canale che
+scrive.
+
+| La domanda | La risposta |
+|---|---|
+| Si integra nel sito o nella landing? | **Né l'uno né l'altra, per analizzare.** Il motore scarica la pagina dall'esterno come fa Google. Un adapter sul sito serve *solo* se scegli un canale che pubblica in automatico — e il canale "report" non ne richiede nessuno |
+| Sito o landing: cambia qualcosa? | **No.** Una landing è 1 URL, un sito è N URL presi dalla sitemap. Cambia il budget di crawl, non il codice |
+| Parla direttamente con Search Console? | **Sì, ma dalla tua installazione**, via API e in *sola lettura*. Il cliente ti autorizza una volta sulla sua property. È opzionale: senza, il motore funziona lo stesso ma perde i dati reali e la misura d'impatto |
+| Una installazione per cliente? | **No, una sola per te.** I clienti sono righe nel database, isolate fra loro |
+
+**La giornata tipo**
+
+1. **Aggiungi un cliente** in dashboard: nome, URL di partenza, e il profilo che dalla pagina non è deducibile (brand voice, servizi prioritari, query target).
+2. **Il cliente ti autorizza su Search Console** — una volta sola, ed è facoltativo.
+3. **Scegli il canale di pubblicazione** per quel cliente. Puoi restare su "report" e non toccare mai il suo sito.
+4. **Di notte il motore lavora**: scarica le pagine, calcola l'audit deterministico, chiama Claude solo dove serve giudizio.
+5. **La mattina trovi una coda di proposte**, ognuna con diff, punteggio prima/dopo, motivo e dati Search Console.
+6. **Approvi, modifichi o rifiuti.** Fino a qui nessun sito è stato toccato.
+7. **Dopo 14–28 giorni** la dashboard dice se posizione e CTR si sono mossi, e propone il rollback se sono peggiorati.
+
 ---
 
 ## 2. Diagnosi dello stato attuale
