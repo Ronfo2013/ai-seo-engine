@@ -51,6 +51,7 @@ final class GeminiPipelineTest extends TestCase
         [$esito, $salvato] = $this->esegui($motore);
 
         self::assertTrue($esito['success'], (string) ($esito['error'] ?? ''));
+        self::assertIsArray($salvato, 'Il callback di salvataggio non è stato invocato');
         self::assertSame('Bowling e Ristorante a Portogruaro | Arhena', $salvato['seo']['title']);
         self::assertStringContainsString('Portogruaro', $salvato['seo']['description']);
     }
@@ -148,6 +149,7 @@ final class GeminiPipelineTest extends TestCase
         [$esito, $salvato] = $this->esegui($motore);
 
         self::assertTrue($esito['success']);
+        self::assertIsArray($salvato);
         self::assertSame(60, mb_strlen($salvato['seo']['title']), 'Tagliato al 60esimo carattere, punto');
         self::assertStringEndsWith(
             'Eventi e',
@@ -181,6 +183,6 @@ final class GeminiPipelineTest extends TestCase
         $richiesta = $http->lastRequest();
 
         self::assertStringContainsString('key=chiave-di-test', $richiesta['url']);
-        self::assertStringNotContainsString('chiave-di-test', json_encode($richiesta['payload']));
+        self::assertStringNotContainsString('chiave-di-test', (string) json_encode($richiesta['payload']));
     }
 }

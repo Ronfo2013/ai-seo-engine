@@ -49,7 +49,7 @@ final class RunWindowTest extends TestCase
             true
         );
 
-        self::assertTrue($esito['success'], json_encode($esito));
+        self::assertTrue($esito['success'], (string) json_encode($esito));
         self::assertSame(1, $http->requestCount());
     }
 

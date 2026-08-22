@@ -44,11 +44,10 @@ jobs:
 
       - name: Stile del codice
         run: vendor/bin/php-cs-fixer fix --dry-run --diff
-        continue-on-error: true
 
-      # Il livello 8 è l'obiettivo, non il punto di partenza: il codice della v1
-      # non è tipizzato. Questo passo resta informativo finché non si stabilisce
-      # una baseline, poi diventa bloccante.
-      - name: Analisi statica (informativa)
+      # Livello 8 e bloccante. Il debito non tipizzato della v1 è circoscritto a
+      # GeminiSEO.php tramite ignoreErrors in phpstan.neon: tutto il codice
+      # nuovo è analizzato per intero, e quando la Fase 2 riscriverà quel file
+      # le eccezioni spariranno con lui.
+      - name: Analisi statica
         run: vendor/bin/phpstan analyse --no-progress --error-format=github
-        continue-on-error: true

@@ -9,3 +9,15 @@ parameters:
             # ospite: qui non esistono e l'analisi non ha nulla da leggere.
             - ai-seo-engine/integration.php
             - ai-seo-engine/cron.php
+    ignoreErrors:
+        # ── Debito della v1, circoscritto a un solo file ──────────────────────
+        # GeminiSEO.php non è tipizzato: array senza tipo di valore ovunque e
+        # ritorni di file_get_contents() usati senza controllo. Non lo tipizziamo
+        # ora perché la Fase 2 lo riscrive; nel frattempo il debito resta
+        # inchiodato a questo file e tutto il resto è analizzato a livello 8.
+        -
+            message: '#no value type specified in iterable type array#'
+            path: ai-seo-engine/GeminiSEO.php
+        -
+            message: '#Parameter \#1 \$json of function json_decode expects string, string\|false given#'
+            path: ai-seo-engine/GeminiSEO.php

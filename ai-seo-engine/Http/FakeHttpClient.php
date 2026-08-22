@@ -19,7 +19,9 @@ final class FakeHttpClient implements HttpClient
 
     public function __construct(HttpResponse ...$responses)
     {
-        $this->queue = $responses;
+        // array_values: con gli argomenti nominati un variadico può avere
+        // chiavi stringa, e array_shift() qui si aspetta una lista.
+        $this->queue = array_values($responses);
     }
 
     public static function respondingWith(int $status, string $body): self

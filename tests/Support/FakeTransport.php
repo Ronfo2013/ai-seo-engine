@@ -17,7 +17,7 @@ final class FakeTransport implements Transport
 
     public function __construct(HttpResponse ...$preparate)
     {
-        $this->preparate = $preparate;
+        $this->preparate = array_values($preparate);
     }
 
     /** @param array<int, HttpResponse> $risposte */
